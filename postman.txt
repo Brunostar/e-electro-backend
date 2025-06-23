@@ -1,0 +1,9 @@
+Collections:
+
+POST /api/shops → Add/update shop (requires Bearer token)
+
+GET /api/shops/{vendorId} → Get shop info
+
+POST /api/products → Add product
+
+GET /api/products/shop/{shopId} → List products from a shop
