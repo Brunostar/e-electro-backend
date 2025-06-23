@@ -1,24 +1,66 @@
 const express = require("express");
 const { verifyToken } = require("../middleware/authMiddleware");
-const router = express.Router();
-const { db } = require("../services/firebaseService");
 const { checkRole } = require("../middleware/roleMiddleware");
+const { db } = require("../services/firebaseService");
 
-// Create or update a shop
-router.post("/", verifyToken, async (req, res) => {
-  const { name, description, whatsappNumber } = req.body;
+const router = express.Router();
+
+/**
+ * Create or update a shop
+ * POST /api/shops
+ */
+router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
+  const { name, description, whatsappNumber, location, logoUrl, coverPhotoUrl } = req.body;
   const vendorId = req.user.uid;
 
-  const shopRef = db.collection("shops").doc(vendorId);
-  await shopRef.set({ name, description, whatsappNumber, vendorId, approved: false }, { merge: true });
+  const shopData = {
+    name,
+    description,
+    whatsappNumber,
+    location: location || "",
+    logoUrl: logoUrl || "",
+    coverPhotoUrl: coverPhotoUrl || "",
+    vendorId,
+    approved: false,
+    updatedAt: new Date()
+  };
 
-  res.json({ message: "Shop saved" });
+  const shopRef = db.collection("shops").doc(vendorId);
+  await shopRef.set(shopData, { merge: true });
+
+  res.status(200).json({ message: "Shop saved", data: shopData });
 });
 
-// Get a vendor's shop
+/**
+ * Get all shops
+ * GET /api/shops
+ */
+router.get("/", async (req, res) => {
+  try {
+    const snap = await db.collection("shops").get();
+    const shops = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(shops);
+  } catch (error) {
+    console.error("Error fetching shops:", error);
+    res.status(500).json({ error: "Failed to fetch shops" });
+  }
+});
+
+/**
+ * Get a vendor's shop
+ * GET /api/shops/:vendorId
+ */
 router.get("/:vendorId", async (req, res) => {
-  const shop = await db.collection("shops").doc(req.params.vendorId).get();
-  res.json(shop.exists ? shop.data() : {});
+  try {
+    const shopSnap = await db.collection("shops").doc(req.params.vendorId).get();
+    if (!shopSnap.exists) {
+      return res.status(404).json({ error: "Shop not found" });
+    }
+    res.status(200).json({ id: shopSnap.id, ...shopSnap.data() });
+  } catch (error) {
+    console.error("Error fetching shop:", error);
+    res.status(500).json({ error: "Failed to fetch shop" });
+  }
 });
 
 module.exports = router;
