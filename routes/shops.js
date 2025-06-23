@@ -5,7 +5,7 @@ const { db } = require("../services/firebaseService");
 const { checkRole } = require("../middleware/roleMiddleware");
 
 // Create or update a shop
-router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   const { name, description, whatsappNumber } = req.body;
   const vendorId = req.user.uid;
 
