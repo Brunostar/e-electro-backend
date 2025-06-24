@@ -1,10 +1,14 @@
 const express = require("express");
 const { verifyToken } = require("../middleware/authMiddleware");
-const router = express.Router();
-const { db } = require("../services/firebaseService");
 const { checkRole } = require("../middleware/roleMiddleware");
+const { db } = require("../services/firebaseService");
 
-// Add a product
+const router = express.Router();
+
+/**
+ * Add a product
+ * POST /api/products
+ */
 router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
   const { title, description, price, stock, images, category } = req.body;
   const vendorId = req.user.uid;
@@ -14,24 +18,55 @@ router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
 
   if (!shop.exists) return res.status(400).json({ error: "Vendor has no shop" });
 
-  const productRef = await db.collection("products").add({
-    title, description, price, stock, images, category,
+  const productData = {
+    title,
+    description,
+    price,
+    stock,
+    images: images || [],
+    category: category || "Uncategorized",
     shopId: shop.id,
     vendorId,
     createdAt: new Date()
-  });
+  };
 
-  res.json({ id: productRef.id });
+  const productRef = await db.collection("products").add(productData);
+
+  res.status(201).json({ message: "Product added", id: productRef.id, ...productData });
 });
 
-// Get products by shop
-router.get("/shop/:shopId", async (req, res) => {
-  const productsSnap = await db.collection("products")
-    .where("shopId", "==", req.params.shopId)
-    .get();
+/**
+ * Get all products
+ * GET /api/products
+ */
+router.get("/", async (req, res) => {
+  try {
+    const snapshot = await db.collection("products").orderBy("createdAt", "desc").get();
+    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
 
-  const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  res.json(products);
+/**
+ * Get products by shop
+ * GET /api/products/shop/:shopId
+ */
+router.get("/shop/:shopId", async (req, res) => {
+  try {
+    const productsSnap = await db.collection("products")
+      .where("shopId", "==", req.params.shopId)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error fetching shop products:", error);
+    res.status(500).json({ error: "Failed to fetch products for this shop" });
+  }
 });
 
 module.exports = router;
