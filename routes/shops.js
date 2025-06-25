@@ -32,6 +32,28 @@ router.post("/", verifyToken, async (req, res) => {
 });
 
 /**
+ * Approve a shop (admin only)
+ * POST /api/shops/:vendorId/approve
+ */
+router.post("/:vendorId/approve", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const vendorId = req.params.vendorId;
+    const shopRef = db.collection("shops").doc(vendorId);
+
+    const shopSnap = await shopRef.get();
+    if (!shopSnap.exists) {
+      return res.status(404).json({ error: "Shop not found" });
+    }
+
+    await shopRef.update({ approved: true, approvedAt: new Date() });
+    res.status(200).json({ message: "Shop approved" });
+  } catch (error) {
+    console.error("Error approving shop:", error);
+    res.status(500).json({ error: "Failed to approve shop" });
+  }
+});
+
+/**
  * Get all shops
  * GET /api/shops
  */
