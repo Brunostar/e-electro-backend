@@ -9,7 +9,7 @@ const router = express.Router();
  * Create or update a shop
  * POST /api/shops
  */
-router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   const { name, description, whatsappNumber, location, logoUrl, coverPhotoUrl } = req.body;
   const vendorId = req.user.uid;
 
