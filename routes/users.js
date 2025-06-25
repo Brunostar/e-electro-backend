@@ -5,7 +5,10 @@ const { checkRole } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-// Register user (should be called from frontend after Firebase Auth signup)
+/**
+ * Register user after Firebase Auth signup
+ * POST /api/users/register
+ */
 router.post("/register", verifyToken, async (req, res) => {
   const { name, email, role } = req.body;
   const uid = req.user.uid;
@@ -14,11 +17,14 @@ router.post("/register", verifyToken, async (req, res) => {
     return res.status(400).json({ error: "Invalid role" });
   }
 
-  await db.collection("users").doc(uid).set({ uid, email, name, role });
-  res.json({ message: "User registered" });
+  await db.collection("users").doc(uid).set({ uid, email, name, role }, { merge: true });
+  res.status(201).json({ message: "User registered" });
 });
 
-// Admin assigns role to a user
+/**
+ * Admin assigns a role to a user
+ * POST /api/users/set-role
+ */
 router.post("/set-role", verifyToken, checkRole("admin"), async (req, res) => {
   const { uid, role } = req.body;
 
@@ -27,7 +33,39 @@ router.post("/set-role", verifyToken, checkRole("admin"), async (req, res) => {
   }
 
   await db.collection("users").doc(uid).update({ role });
-  res.json({ message: `Role updated to ${role}` });
+  res.status(200).json({ message: `Role updated to ${role}` });
+});
+
+/**
+ * Get all users (admin only)
+ * GET /api/users
+ */
+router.get("/", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const snapshot = await db.collection("users").get();
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+/**
+ * Get single user by UID
+ * GET /api/users/:id
+ */
+router.get("/:id", verifyToken, async (req, res) => {
+  try {
+    const userSnap = await db.collection("users").doc(req.params.id).get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json({ id: userSnap.id, ...userSnap.data() });
+  } catch (err) {
+    console.error("Error fetching user:", err);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
 });
 
 module.exports = router;
