@@ -15,6 +15,7 @@ router.post("/", verifyToken, async (req, res) => {
 
   const shopData = {
     name,
+    category,
     description,
     whatsappNumber,
     location: location || "",
