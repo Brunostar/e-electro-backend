@@ -26,6 +26,7 @@ router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
     images: images || [],
     category: category || "Uncategorized",
     subCategory,
+    manufacturer: manufacturer || "",
     shopId: shop.id,
     vendorId,
     createdAt: new Date()
