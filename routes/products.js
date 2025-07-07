@@ -11,7 +11,7 @@ const router = express.Router();
  * POST /api/products
  */
 router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
-  const { title, description, price, stock, images, category, subCategory } = req.body;
+  const { title, description, price, stock, images, category, subCategory, manufacturer } = req.body;
   const vendorId = req.user.uid;
 
   const shopRef = db.collection("shops").doc(vendorId);
