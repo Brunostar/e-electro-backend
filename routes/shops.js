@@ -2,6 +2,8 @@ const express = require("express");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { checkRole } = require("../middleware/roleMiddleware");
 const { db } = require("../services/firebaseService");
+const { sendEmail } = require("../utils/emailService");
+const { getAdminEmails } = require("../utils/adminUtils");
 
 const router = express.Router();
 
@@ -29,6 +31,34 @@ router.post("/", verifyToken, async (req, res) => {
   const shopRef = db.collection("shops").doc(vendorId);
   await shopRef.set(shopData, { merge: true });
 
+  // Get vendor info
+  const userSnap = await db.collection("users").doc(vendorId).get();
+  const vendor = userSnap.data();
+
+  // Email the vendor
+  await sendEmail({
+    to: vendor.email,
+    subject: "Shop Created",
+    html: `
+      <p>Hi ${vendor.name},</p>
+      <p>Your shop "${name}" has been created and is pending admin approval.</p>
+    `
+  });
+
+  // Notify all admins
+  const adminEmails = await getAdminEmails();
+
+  if (adminEmails.length > 0) {
+    await sendEmail({
+      to: adminEmails,
+      subject: "New Shop Awaiting Approval",
+      html: `
+        <p>Admins,</p>
+        <p>The shop "${name}" was created by ${vendor.name} (${vendor.email}) and needs approval.</p>
+      `
+    });
+  }
+
   res.status(200).json({ message: "Shop saved", data: shopData });
 });
 
@@ -47,6 +77,20 @@ router.post("/:vendorId/approve", verifyToken, checkRole("admin"), async (req, r
     }
 
     await shopRef.update({ approved: true, approvedAt: new Date() });
+
+    // Notify vendor
+    const vendorSnap = await db.collection("users").doc(vendorId).get();
+    const vendor = vendorSnap.data();
+
+    await sendEmail({
+      to: vendor.email,
+      subject: "Your Shop Has Been Approved",
+      html: `
+        <p>Hi ${vendor.name},</p>
+        <p>Your shop "${shopSnap.data().name}" has been approved and is now live on the platform.</p>
+      `
+    });
+
     res.status(200).json({ message: "Shop approved" });
   } catch (error) {
     console.error("Error approving shop:", error);

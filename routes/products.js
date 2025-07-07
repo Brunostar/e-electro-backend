@@ -2,6 +2,7 @@ const express = require("express");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { checkRole } = require("../middleware/roleMiddleware");
 const { db } = require("../services/firebaseService");
+const { sendEmail } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -16,7 +17,9 @@ router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
   const shopRef = db.collection("shops").doc(vendorId);
   const shop = await shopRef.get();
 
-  if (!shop.exists) return res.status(400).json({ error: "Vendor has no shop" });
+  if (!shop.exists) {
+    return res.status(400).json({ error: "Vendor has no shop" });
+  }
 
   const productData = {
     title,
@@ -33,6 +36,19 @@ router.post("/", verifyToken, checkRole("vendor"), async (req, res) => {
   };
 
   const productRef = await db.collection("products").add(productData);
+
+  // Notify vendor
+  const vendorSnap = await db.collection("users").doc(vendorId).get();
+  const vendor = vendorSnap.data();
+
+  await sendEmail({
+    to: vendor.email,
+    subject: "New Product Added",
+    html: `
+      <p>Hi ${vendor.name},</p>
+      <p>Your product "${title}" has been added successfully to your shop.</p>
+    `
+  });
 
   res.status(201).json({ message: "Product added", id: productRef.id, ...productData });
 });

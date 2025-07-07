@@ -1,7 +1,8 @@
 const express = require("express");
-const { db, auth } = require("../services/firebaseService");
+const { db } = require("../services/firebaseService");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { checkRole } = require("../middleware/roleMiddleware");
+const { sendEmail } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -18,6 +19,18 @@ router.post("/register", verifyToken, async (req, res) => {
   }
 
   await db.collection("users").doc(uid).set({ uid, email, name, role }, { merge: true });
+
+  // Send welcome email
+  await sendEmail({
+    to: email,
+    subject: "Welcome to E-Electro!",
+    html: `
+      <p>Hello ${name},</p>
+      <p>Welcome to E-Electro! Your account has been registered as a <strong>${role}</strong>.</p>
+      <p>Happy selling and shopping!</p>
+    `
+  });
+
   res.status(201).json({ message: "User registered" });
 });
 
