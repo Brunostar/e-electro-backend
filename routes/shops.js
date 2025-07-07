@@ -10,7 +10,7 @@ const router = express.Router();
  * POST /api/shops
  */
 router.post("/", verifyToken, async (req, res) => {
-  const { name, description, whatsappNumber, location, logoUrl, coverPhotoUrl } = req.body;
+  const { name, category, description, whatsappNumber, location, logoUrl, coverPhotoUrl } = req.body;
   const vendorId = req.user.uid;
 
   const shopData = {
