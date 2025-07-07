@@ -1,2 +1,4 @@
 /.env
 /firebase-admin-sdk.json
+/node_modules/*
+/package-lock.json
