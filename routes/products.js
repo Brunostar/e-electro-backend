@@ -88,4 +88,51 @@ router.get("/shop/:shopId", async (req, res) => {
   }
 });
 
+/**
+ * Update a product
+ * PATCH /api/products/:id
+ */
+router.patch("/:id", verifyToken, checkRole("vendor"), async (req, res) => {
+  const productId = req.params.id;
+  const vendorId = req.user.uid;
+
+  try {
+    const productRef = db.collection("products").doc(productId);
+    const productSnap = await productRef.get();
+
+    if (!productSnap.exists) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const existingData = productSnap.data();
+
+    // Check ownership
+    if (existingData.vendorId !== vendorId) {
+      return res.status(403).json({ error: "You do not have permission to update this product." });
+    }
+
+    // Only allow safe fields to be updated
+    const allowedFields = [
+      "title", "description", "price", "stock",
+      "images", "category", "subCategory", "manufacturer", "features"
+    ];
+    const updateData = {};
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    updateData.updatedAt = new Date();
+
+    await productRef.update(updateData);
+
+    res.status(200).json({ message: "Product updated", id: productId, ...updateData });
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Failed to update product" });
+  }
+});
+
 module.exports = router;
